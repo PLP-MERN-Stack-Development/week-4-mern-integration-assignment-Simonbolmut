@@ -1,0 +1,173 @@
+. Directory Structure:
+/blog-app
+│
+├── /client         → React (Vite) Frontend
+│   ├── /src
+│   ├── vite.config.js
+│   └── .env
+│
+├── /server         → Express.js Backend
+│   ├── /controllers
+│   ├── /models
+│   ├── /routes
+│   ├── /middleware
+│   ├── server.js
+│   └── .env
+│
+└── package.json (optional root if using monorepo)
+2. MongoDB + Mongoose Setup (server/server.js)
+import express from 'express';
+import mongoose from 'mongoose';
+import dotenv from 'dotenv';
+import cors from 'cors';
+
+dotenv.config();
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => console.log("MongoDB connected"))
+  .catch(err => console.error(err));
+
+// Routes
+app.use('/api/posts', postRoutes);
+app.use('/api/categories', categoryRoutes);
+
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ message: "Server error" });
+});
+
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+Task 2: Back-End Development
+Models (server/models/Post.js and Category.js)
+// Post.js
+import mongoose from 'mongoose';
+
+const postSchema = new mongoose.Schema({
+  title: String,
+  content: String,
+  category: { type: mongoose.Schema.Types.ObjectId, ref: 'Category' },
+  featuredImage: String,
+}, { timestamps: true });
+
+export default mongoose.model('Post', postSchema);
+
+// Category.js
+const categorySchema = new mongoose.Schema({
+  name: { type: String, required: true }
+});
+
+export default mongoose.model('Category', categorySchema);
+Routes Example:
+
+// server/routes/postRoutes.js
+import express from 'express';
+import { body, param } from 'express-validator';
+import {
+  getPosts, getPostById, createPost, updatePost, deletePost
+} from '../controllers/postController.js';
+
+const router = express.Router();
+
+router.get('/', getPosts);
+router.get('/:id', getPostById);
+router.post('/', body('title').notEmpty(), createPost);
+router.put('/:id', body('title').notEmpty(), updatePost);
+router.delete('/:id', deletePost);
+
+export default router;
+Task 3: Front-End Development (Vite + React)
+1. Set up Vite
+npm create vite@latest client --template react
+cd client
+npm install axios react-router-dom
+2. Proxy setup in vite.config.js
+export default defineConfig({
+  server: {
+    proxy: {
+      '/api': 'http://localhost:5000'
+    }
+  }
+});
+3. Components (structure)
+│
+├── /components
+│   ├── PostList.jsx
+│   ├── PostForm.jsx
+│   ├── PostDetails.jsx
+│   └── Navbar.jsx
+│
+├── /hooks
+│   └── useApi.js
+├── /context
+│   └── PostContext.jsx
+├── App.jsx
+└── main.jsx
+4. React Router (in App.jsx)
+jsx
+Copy
+Edit
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import PostList from './components/PostList';
+import PostForm from './components/PostForm';
+import PostDetails from './components/PostDetails';
+
+function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<PostList />} />
+        <Route path="/posts/:id" element={<PostDetails />} />
+        <Route path="/create" element={<PostForm />} />
+        <Route path="/edit/:id" element={<PostForm />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
+ Task 4: Integration and Data Flow
+API Hook (useApi.js)
+
+import axios from 'axios';
+
+const useApi = (endpoint) => {
+  const get = async () => await axios.get(`/api/${endpoint}`);
+  const post = async (data) => await axios.post(`/api/${endpoint}`, data);
+  const put = async (id, data) => await axios.put(`/api/${endpoint}/${id}`, data);
+  const remove = async (id) => await axios.delete(`/api/${endpoint}/${id}`);
+  return { get, post, put, remove };
+};
+
+export default useApi;
+Optimistic UI, loading, error states — handled with useState, useEffect.Task 5: Advanced Features
+1. Authentication
+Backend: Use jsonwebtoken, bcryptjs
+
+Frontend: Store token in localStorage
+
+Protected routes using React context or higher-order components
+
+2. Image Upload
+Use multer on the backend
+
+Upload via form with type="file"
+
+3. Pagination
+Back-end: Add limit and skip in queries
+
+Front-end: Pass page state to fetch
+
+4. Search & Filter
+Add query params for title, category
+
+Filter results in controller and pass to frontend
+
+5. Comments
+Create Comment model (related to Post)
+
+Add /api/posts/:id/comments endpoints
+
+Render nested comments in PostDetails
+
